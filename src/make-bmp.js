@@ -38,7 +38,7 @@ function convertToBitmap(sourceFile) {
 
 	const metadata = new Buffer(JSON.stringify({
 		filename: path.basename(sourceFile),
-		size: inStats.length
+		size: inStats.size
 	}));
 
 	fs.writeSync(outFile, getBitmapHeader(square, square, metadata.length), 0, 54);
@@ -71,6 +71,7 @@ function convertFromBitmap(sourceFile) {
 	const metadataBuffer = new Buffer(metadataLength);
 	fs.readSync(inFile, metadataBuffer, 0, metadataLength);
 	const metadata = JSON.parse(metadataBuffer.toString("utf-8"));
+	console.log(metadata);
 
 	const outFile = fs.openSync(metadata.filename, "w");
 	const tempBuffer = new Buffer(10240);
