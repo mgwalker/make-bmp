@@ -1,9 +1,6 @@
 const fs = require("fs-ext");
 const path = require("path");
-const cliCursor = require("cli-cursor");
 const uuid = require("node-uuid");
-
-const spinnerCharacters = [ "|", "/", "-", "\\" ];
 
 function getBufferForNumber(size, bytes) {
 	let buffer = new Buffer([ ]);
@@ -51,18 +48,12 @@ function convertToBitmap(sourceFile) {
 	const tempBuffer = new Buffer(10240);
 	let readBytes = 0;
 	let totalBytes = 0;
-	cliCursor.hide();
 	do {
 		readBytes = fs.readSync(inFile, tempBuffer, 0, 10240);
 		fs.writeSync(outFile, tempBuffer, 0, readBytes);
 		tempBuffer.fill(0x00);
 		totalBytes += readBytes;
-		process.stdout.cursorTo(0);
-		process.stdout.write(spinnerCharacters[0] + " | " + Math.round(100 * totalBytes / inStats.size) + "%");
-		spinnerCharacters.push(spinnerCharacters.shift());
 	} while(readBytes === 10240)
-	process.stdout.write("\n");
-	cliCursor.show();
 
 	const padding = new Buffer((square * square * 4) - inStats.size);
 	padding.fill(0x00);
