@@ -7,6 +7,7 @@
     "binary",
     "bmp"
   ],
+  "bin": "bin/cli.js",
   "scripts": {
     "build": "babel --presets es2015 -d bin src"
   },
