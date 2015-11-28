@@ -59,6 +59,8 @@ function convertToBitmap(sourceFile) {
 	padding.fill(0x00);
 	fs.writeSync(outFile, padding, 0, padding.length);
 	fs.closeSync(outFile);
+
+	return `${filename}.bmp`;
 }
 
 function convertFromBitmap(sourceFile) {
@@ -71,7 +73,6 @@ function convertFromBitmap(sourceFile) {
 	const metadataBuffer = new Buffer(metadataLength);
 	fs.readSync(inFile, metadataBuffer, 0, metadataLength);
 	const metadata = JSON.parse(metadataBuffer.toString("utf-8"));
-	console.log(metadata);
 
 	const outFile = fs.openSync(metadata.filename, "w");
 	const tempBuffer = new Buffer(10240);
@@ -85,6 +86,7 @@ function convertFromBitmap(sourceFile) {
 	}
 
 	fs.closeSync(outFile);
+	return metadata.filename;
 }
 
 module.exports = {

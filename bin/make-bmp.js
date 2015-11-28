@@ -61,6 +61,8 @@ function convertToBitmap(sourceFile) {
 	padding.fill(0x00);
 	fs.writeSync(outFile, padding, 0, padding.length);
 	fs.closeSync(outFile);
+
+	return filename + ".bmp";
 }
 
 function convertFromBitmap(sourceFile) {
@@ -87,6 +89,7 @@ function convertFromBitmap(sourceFile) {
 	}
 
 	fs.closeSync(outFile);
+	return metadata.filename;
 }
 
 module.exports = {
