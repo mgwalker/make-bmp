@@ -1,0 +1,16 @@
+{
+  "name": "make-bmp",
+  "version": "1.0.0",
+  "description": "Make an arbitrary file into a valid BMP",
+  "main": "bin/cli.js",
+  "keywords": [
+    "binary",
+    "bmp"
+  ],
+  "author": "Greg Walker <make-bmp@darkcooger.net>",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "mgwalker/make-bmp"
+  }
+}
