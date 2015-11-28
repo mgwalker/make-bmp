@@ -3,11 +3,11 @@ const path = require("path");
 const uuid = require("node-uuid");
 
 function getBufferForNumber(size, bytes) {
-	let buffer = new Buffer([ ]);
+	let array = [ ];
 	for(var shift = 0; shift < bytes; shift++) {
-		buffer = Buffer.concat([ buffer, new Buffer([ (size >> (shift * 8)) & 0xff ]) ]);
+		array.push((size >> (shift * 8)) & 0xff);
 	}
-	return buffer;
+	return new Buffer(array);
 }
 
 function getNumberFromBuffer(buffer) {
