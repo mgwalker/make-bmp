@@ -1,5 +1,5 @@
 {
-  "name": "make-bmp",
+  "name": "@mgwalker/make-bmp",
   "version": "1.0.0",
   "description": "Make an arbitrary file into a valid BMP",
   "main": "bin/make-bmp.js",
