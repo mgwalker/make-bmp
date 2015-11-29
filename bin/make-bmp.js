@@ -2,6 +2,7 @@
 
 var fs = require("fs-ext");
 var path = require("path");
+var crypto = require("crypto");
 var uuid = require("node-uuid");
 
 // Turn a number into a buffer of the specified size
@@ -40,85 +41,87 @@ function getBitmapHeader(rows, columns, metadataLength) {
 }
 
 function convertToBitmap(sourceFile) {
-	var inFile = fs.openSync(sourceFile, "r");
-	var inStats = fs.statSync(sourceFile);
+	return new Promise(function (resolve) {
+		var inFile = fs.createReadStream(sourceFile, { defaultEncoding: "binary" });
+		var inStats = fs.statSync(sourceFile);
 
-	// For simplicity's sake, make the bitmap a square, so
-	// round up to the nearest square root of the input file
-	// size (divided by four, because one pixel is 4 bytes).
-	var square = Math.ceil(Math.sqrt(inStats.size / 4.0));
+		// For simplicity's sake, make the bitmap a square, so
+		// round up to the nearest square root of the input file
+		// size (divided by four, because one pixel is 4 bytes).
+		//
+		// TODO: Instead of a square, compute a rectangle that is
+		// nearest a square.  Alternatively, one pixel height.
+		// But something that results in less padding, anyway.
+		var square = Math.ceil(Math.sqrt(inStats.size / 4.0));
 
-	// Generate a filename.
-	var filename = uuid.v4().toString(16);
-	var outFile = fs.openSync("./" + filename + ".bmp", "w");
+		// Generate a filename.
+		var filename = uuid.v4().toString(16);
+		var outFile = fs.createWriteStream("./" + filename + ".bmp", { defaultEncoding: "binary" });
+		var md5 = crypto.createHash("md5");
 
-	// Store off the original filename and original file
-	// size in the metadata added to the bitmap.
-	var metadata = new Buffer(JSON.stringify({
-		filename: path.basename(sourceFile),
-		size: inStats.size
-	}));
+		// Store off the original filename and original file
+		// size in the metadata added to the bitmap.
+		var metadata = new Buffer(JSON.stringify({
+			filename: path.basename(sourceFile),
+			size: inStats.size
+		}));
 
-	// Write out the bitmap header, metadata length, and
-	// metadata to the new bitmap file.
-	fs.writeSync(outFile, getBitmapHeader(square, square, metadata.length), 0, 54);
-	fs.writeSync(outFile, getBufferForNumber(metadata.length, 4), 0, 4);
-	fs.writeSync(outFile, metadata, 0, metadata.length);
+		// Write out the bitmap header, metadata length, and
+		// metadata to the new bitmap file.
+		outFile.write(getBitmapHeader(square, square, metadata.length));
+		outFile.write(getBufferForNumber(metadata.length, 4));
+		outFile.write(metadata);
 
-	// Now write over all the bytes from the input file.
-	var tempBuffer = new Buffer(10240);
-	var readBytes = 0;
-	var totalBytes = 0;
-	do {
-		readBytes = fs.readSync(inFile, tempBuffer, 0, 10240);
-		fs.writeSync(outFile, tempBuffer, 0, readBytes);
-		tempBuffer.fill(0x00);
-		totalBytes += readBytes;
-	} while (readBytes === 10240);
-
-	// Write out padding bytes to account for
-	// rounding up the square root up above.
-	var padding = new Buffer(square * square * 4 - inStats.size);
-	padding.fill(0x00);
-	fs.writeSync(outFile, padding, 0, padding.length);
-	fs.closeSync(outFile);
-
-	return filename + ".bmp";
+		inFile.pipe(outFile, { end: false });
+		inFile.on("data", function (chunk) {
+			return md5.update(chunk);
+		});
+		inFile.once("end", function () {
+			var hash = md5.digest("hex");
+			// Write out padding bytes to account for
+			// rounding up the square root up above.
+			var padding = new Buffer(square * square * 4 - inStats.size);
+			padding.fill(0x00);
+			outFile.end(padding, function () {
+				fs.rename("./" + filename + ".bmp", "./" + hash + ".bmp", function () {
+					resolve(hash + ".bmp");
+				});
+			});
+		});
+	});
 }
 
 function convertFromBitmap(sourceFile) {
-	var inFile = fs.openSync(sourceFile, "r");
+	return new Promise(function (resolve) {
+		try {
+			(function () {
+				var inFile = fs.createReadStream(sourceFile, { defaultEncoding: "binary" });
+				inFile.once("readable", function () {
+					// Skip the bitmap version 3 header since we
+					// don't care about it.
+					inFile.read(54);
 
-	// Skip the bitmap version 3 header since we don't care about it.
-	fs.seekSync(inFile, 54, 0);
+					// Get the metadata.
+					var metadataLength = getNumberFromBuffer(inFile.read(4));
+					var metadata = JSON.parse(inFile.read(metadataLength).toString("utf-8"));
 
-	// Read the length of the metadata
-	var metadataLengthBuffer = new Buffer(4);
-	fs.readSync(inFile, metadataLengthBuffer, 0, 4);
-	var metadataLength = getNumberFromBuffer(metadataLengthBuffer);
+					var outFile = fs.createWriteStream(metadata.filename, { defaultEncoding: "binary" });
 
-	// Now read the metadata
-	var metadataBuffer = new Buffer(metadataLength);
-	fs.readSync(inFile, metadataBuffer, 0, metadataLength);
-	var metadata = JSON.parse(metadataBuffer.toString("utf-8"));
-
-	var outFile = fs.openSync(metadata.filename, "w");
-	var tempBuffer = new Buffer(10240);
-
-	// Use the metadata to figure out how many bytes to
-	// read, in 10240-byte chunks.  Ignore the padding
-	// bytes at the end of the bitmap.
-	var bytesNeeded = metadata.size;
-	var bytesToRead = bytesNeeded > 10240 ? 10240 : bytesNeeded;
-	while (bytesNeeded > 0) {
-		var read = fs.readSync(inFile, tempBuffer, 0, bytesToRead);
-		fs.writeSync(outFile, tempBuffer, 0, read);
-		bytesNeeded -= read;
-		bytesToRead = bytesNeeded > 10240 ? 10240 : bytesNeeded;
-	}
-
-	fs.closeSync(outFile);
-	return metadata.filename;
+					// Pipe from the bitmap into the new file.
+					inFile.pipe(outFile);
+					inFile.once("end", function () {
+						// When that's done, truncate the output file to
+						// the write size.
+						fs.truncate(metadata.filename, metadata.size, function () {
+							resolve(metadata.filename);
+						});
+					});
+				});
+			})();
+		} catch (e) {
+			console.log(e);
+		}
+	});
 }
 
 module.exports = {
