@@ -15,11 +15,15 @@ fs.exists(process.argv[3], (exists) => {
 	} else {
 		switch(process.argv[2]) {
 			case "encode":
-				console.log(`Encoded bitmap ${makeBmp.toBitmap(process.argv[3])}`);
+				makeBmp.toBitmap(process.argv[3]).then(filename => {
+					console.log(`Encoded bitmap ${filename}`);
+				});
 				break;
 
 			case "decode":
-				console.log(`Decoded file ${makeBmp.fromBitmap(process.argv[3])}`);
+				makeBmp.fromBitmap(process.argv[3]).then(filename => {
+					console.log(`Decoded file ${filename}`);
+				});
 				break;
 
 			default:
