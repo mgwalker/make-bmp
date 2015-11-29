@@ -22,8 +22,8 @@ The library exports to methods:
 ```
 var makeBmp = require("make-bmp");
 
-makeBmp.toBitmap("path-to-file");
-makeBmp.fromBitmap("path-to-bitmap");
+makeBmp.toBitmap("path-to-file").then(filename => doStuff());
+makeBmp.fromBitmap("path-to-bitmap").then(filename => doOtherStuff());
 ```
 
-Both methods return the output filename.  The `toBitmap` method creates a UUID for the output filename.  The `fromBitmap` method reads the original filename from the metadata stuffed into the bitmap when it was created.
+Both methods return a promise that resolve the output filename.  The `toBitmap` method creates an MD5 hash of the input file for the output filename.  The `fromBitmap` method reads the original filename from the metadata stuffed into the bitmap when it was created.
